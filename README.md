@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# t-shirt (Next.js + SQLite + Drizzle)
 
-## Getting Started
+Full-stack e-commerce web app for a t-shirt/clothing brand with:
 
-First, run the development server:
+- Next.js (App Router), React, TypeScript, Tailwind CSS
+- SQLite + Drizzle ORM
+- Zustand cart state
+- Stripe checkout integration
+- Admin authentication + inventory management
+- OpenAI-powered customer support chatbot
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Homepage with hero, featured products, category highlights, newsletter, chatbot launcher
+- Shop/category pages with filters (size, price, stock)
+- Product detail pages
+- Cart with quantity updates/removal + Stripe checkout redirect
+- Order confirmation page
+- Admin login + dashboard for product CRUD and inventory updates
+- AI chatbot API that can reference product catalog data
+- Seed script for categories, products, and default admin user
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech choices
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **No Prisma** (uses Drizzle + direct SQL table bootstrap)
+- TypeScript everywhere (`src` + seed script)
+- Environment-variable based secrets
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Install deps:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Copy env file:
 
-## Deploy on Vercel
+   ```bash
+   cp .env.example .env
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. Seed database:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm run db:seed
+   ```
+
+4. Run dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+Open http://localhost:3000.
+
+## Default admin credentials
+
+- Email: `admin@tshirt.com`
+- Password: `admin1234`
+
+> Change these immediately in production.
+
+## Important environment variables
+
+- `DATABASE_URL` (SQLite path, default `file:./tshirt.db`)
+- `JWT_SECRET` for admin session token signing
+- `STRIPE_SECRET_KEY` for checkout session creation
+- `OPENAI_API_KEY` for chatbot responses
+- `NEXT_PUBLIC_APP_URL` for Stripe redirect URLs
+
+## Production notes
+
+- Add Stripe webhooks for robust order status reconciliation.
+- Move images to a CDN/storage bucket.
+- Add rate limiting on chatbot and auth endpoints.
+- Add CSRF protection and full audit logs for admin actions.
