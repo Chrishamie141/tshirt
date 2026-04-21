@@ -20,18 +20,18 @@ export default async function ShopPage({
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-black">Shop</h1>
-      <form className="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-4">
-        <input name="size" placeholder="Size (S, M, L...)" defaultValue={params.size} className="rounded border border-zinc-300 px-3 py-2" />
-        <input name="min" type="number" step="0.01" placeholder="Min price" defaultValue={params.min} className="rounded border border-zinc-300 px-3 py-2" />
-        <input name="max" type="number" step="0.01" placeholder="Max price" defaultValue={params.max} className="rounded border border-zinc-300 px-3 py-2" />
-        <label className="flex items-center gap-2 rounded border border-zinc-300 px-3 py-2 text-sm">
+      <form className="grid gap-3 rounded-xl border border-zinc-200 bg-white/90 p-4 shadow-sm shadow-zinc-200/40 md:grid-cols-4">
+        <input name="size" placeholder="Size (S, M, L...)" defaultValue={params.size} className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100" />
+        <input name="min" type="number" step="0.01" placeholder="Min price" defaultValue={params.min} className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100" />
+        <input name="max" type="number" step="0.01" placeholder="Max price" defaultValue={params.max} className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100" />
+        <label className="flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm">
           <input type="checkbox" name="inStock" value="1" defaultChecked={params.inStock === "1"} /> In stock only
         </label>
-        <button className="rounded bg-black px-3 py-2 text-sm font-semibold text-white md:col-span-4">Apply filters</button>
+        <button className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-black md:col-span-4">Apply filters</button>
       </form>
       <div className="flex flex-wrap gap-2 text-sm">
         {categories.map((category) => (
-          <Link className="rounded-full border border-zinc-300 px-3 py-1" key={category.id} href={`/shop/${category.slug}`}>
+          <Link className="rounded-full border border-zinc-300 bg-white/80 px-3 py-1 hover:border-amber-300 hover:bg-amber-50" key={category.id} href={`/shop/${category.slug}`}>
             {category.name}
           </Link>
         ))}
