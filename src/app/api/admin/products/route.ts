@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { parseNonNegativePrice } from "@/lib/price";
 import { products } from "@/lib/schema";
 
 export async function GET() {
@@ -22,15 +23,20 @@ export async function POST(request: Request) {
     description: string;
     imageUrl: string;
     categoryId: number;
-    price: number;
+    price: number | string;
     sizes: string;
     stock: number;
   };
 
+  const parsedPrice = parseNonNegativePrice(String(body.price));
+  if (parsedPrice === null) {
+    return NextResponse.json({ error: "Price must be a valid non-negative decimal." }, { status: 400 });
+  }
+
   const now = new Date();
   const result = await db
     .insert(products)
-    .values({ ...body, featured: false, createdAt: now, updatedAt: now })
+    .values({ ...body, price: parsedPrice, featured: false, createdAt: now, updatedAt: now })
     .returning({ id: products.id, name: products.name, slug: products.slug, price: products.price, stock: products.stock });
 
   return NextResponse.json({ product: result[0] });

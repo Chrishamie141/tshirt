@@ -58,10 +58,10 @@ const insertProduct = sqlite.prepare(`
 `);
 
 [
-  ["Classic Logo Tee", "classic-logo-tee", "Soft cotton tee with subtle front logo and relaxed fit.", "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1200", categoryBySlug["t-shirts"], 29, "S,M,L,XL", 38, 1],
-  ["Oversized Street Tee", "oversized-street-tee", "Dropped shoulders and heavyweight jersey for all-day comfort.", "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=1200", categoryBySlug["t-shirts"], 34, "M,L,XL", 22, 1],
-  ["Core Pullover Hoodie", "core-pullover-hoodie", "Brushed fleece hoodie with kangaroo pocket and ribbed cuffs.", "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=1200", categoryBySlug.hoodies, 68, "S,M,L,XL", 16, 1],
-  ["Cargo Utility Pants", "cargo-utility-pants", "Tapered cotton cargo with stretch waistband and pocket storage.", "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=1200", categoryBySlug.clothes, 72, "M,L,XL", 12, 0],
+  ["Classic Logo Tee", "classic-logo-tee", "Soft cotton tee with subtle front logo and relaxed fit.", "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1200", categoryBySlug["t-shirts"], 29.0, "S,M,L,XL", 38, 1],
+  ["Oversized Street Tee", "oversized-street-tee", "Dropped shoulders and heavyweight jersey for all-day comfort.", "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=1200", categoryBySlug["t-shirts"], 34.99, "M,L,XL", 22, 1],
+  ["Core Pullover Hoodie", "core-pullover-hoodie", "Brushed fleece hoodie with kangaroo pocket and ribbed cuffs.", "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=1200", categoryBySlug.hoodies, 68.5, "S,M,L,XL", 16, 1],
+  ["Cargo Utility Pants", "cargo-utility-pants", "Tapered cotton cargo with stretch waistband and pocket storage.", "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=1200", categoryBySlug.clothes, 72.0, "M,L,XL", 12, 0],
 ].forEach((product) => insertProduct.run(...product, now, now));
 
 const insertAdmin = sqlite.prepare(
