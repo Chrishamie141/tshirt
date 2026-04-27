@@ -4,7 +4,10 @@ export const admins = sqliteTable("admins", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  resetToken: text("reset_token"),
+  resetTokenExpiresAt: integer("reset_token_expires_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
 export const categories = sqliteTable("categories", {
@@ -20,7 +23,9 @@ export const products = sqliteTable("products", {
   slug: text("slug").notNull().unique(),
   description: text("description").notNull(),
   imageUrl: text("image_url").notNull(),
-  categoryId: integer("category_id").notNull().references(() => categories.id),
+  categoryId: integer("category_id")
+    .notNull()
+    .references(() => categories.id),
   price: real("price").notNull(),
   sizes: text("sizes").notNull().default("S,M,L,XL"),
   stock: integer("stock").notNull().default(0),
@@ -40,14 +45,20 @@ export const orders = sqliteTable("orders", {
 
 export const orderItems = sqliteTable("order_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  orderId: integer("order_id").notNull().references(() => orders.id),
-  productId: integer("product_id").notNull().references(() => products.id),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => products.id),
   name: text("name").notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: real("unit_price").notNull(),
   size: text("size").notNull(),
 });
 
+export type Admin = typeof admins.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Order = typeof orders.$inferSelect;
+export type OrderItem = typeof orderItems.$inferSelect;
