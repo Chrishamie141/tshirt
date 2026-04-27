@@ -3,6 +3,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const ADMIN_COOKIE_NAME = "admin_session";
+const USER_COOKIE_NAME = "user_session";
+
+type UserRole = "user" | "admin";
 
 function secret() {
   if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
@@ -24,6 +27,18 @@ export function verifyAdminToken(token: string) {
   }
 }
 
+export function signUserToken(payload: { userId: number; email: string; role: UserRole }) {
+  return jwt.sign(payload, secret(), { expiresIn: "12h" });
+}
+
+export function verifyUserToken(token: string) {
+  try {
+    return jwt.verify(token, secret()) as { userId: number; email: string; role: UserRole };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Reads admin session from httpOnly cookie and verifies JWT signature/expiration.
  */
@@ -34,6 +49,15 @@ export async function getAdminSession() {
   if (!token) return null;
 
   return verifyAdminToken(token);
+}
+
+export async function getUserSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(USER_COOKIE_NAME)?.value;
+
+  if (!token) return null;
+
+  return verifyUserToken(token);
 }
 
 /**
@@ -51,6 +75,22 @@ export async function requireAdminSession() {
   return { session, unauthorized: null };
 }
 
+export async function requireUserSession() {
+  const session = await getUserSession();
+  if (!session) {
+    return {
+      session: null,
+      unauthorized: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  return { session, unauthorized: null };
+}
+
 export function adminCookieName() {
   return ADMIN_COOKIE_NAME;
+}
+
+export function userCookieName() {
+  return USER_COOKIE_NAME;
 }

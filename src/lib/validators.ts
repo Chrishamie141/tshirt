@@ -7,6 +7,20 @@ export const loginSchema = z.object({
   password: z.string().min(8),
 });
 
+export const signupSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(32),
+  password: z.string().min(8),
+});
+
 export const imageUrlSchema = z
   .string()
   .trim()
@@ -43,9 +57,11 @@ export const checkoutSchema = z.object({
   items: z
     .array(
       z.object({
+        productId: z.coerce.number().int().positive(),
         name: z.string().trim().min(1),
         price: z.coerce.number().positive(),
         quantity: z.coerce.number().int().positive(),
+        size: z.string().trim().min(1),
       })
     )
     .min(1),

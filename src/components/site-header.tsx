@@ -2,10 +2,27 @@
 
 import Link from "next/link";
 import { Shirt, ShoppingCart } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useCartStore } from "@/store/cart-store";
+
+type SessionUser = {
+  email: string;
+  role: "user" | "admin";
+};
 
 export function SiteHeader() {
   const itemCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  useEffect(() => {
+    const run = async () => {
+      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      const data = (await response.json()) as { user: SessionUser | null };
+      setUser(data.user);
+    };
+
+    void run();
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200/70 bg-white/75 backdrop-blur-xl">
@@ -29,6 +46,18 @@ export function SiteHeader() {
           <Link href="/shop/clothes" className="relative py-1 hover:text-sky-700 after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-sky-500 after:content-[''] hover:after:w-full">
             Clothes
           </Link>
+          {user ? (
+            <>
+              <Link href="/account" className="relative py-1 hover:text-sky-700">Account</Link>
+              {user.role === "admin" ? <Link href="/admin" className="relative py-1 hover:text-sky-700">Admin</Link> : null}
+              <Link href="/logout" className="relative py-1 hover:text-sky-700">Logout</Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="relative py-1 hover:text-sky-700">Login</Link>
+              <Link href="/signup" className="relative py-1 hover:text-sky-700">Signup</Link>
+            </>
+          )}
           <Link href="/cart" className="relative inline-flex items-center gap-2 rounded-full border border-transparent px-2 py-1 hover:border-sky-200 hover:bg-white">
             <ShoppingCart size={18} />
             Cart

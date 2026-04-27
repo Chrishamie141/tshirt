@@ -14,6 +14,21 @@ export const admins = sqliteTable(
   (table) => [index("idx_admins_email").on(table.email)]
 );
 
+export const users = sqliteTable(
+  "users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    email: text("email").notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role", { enum: ["user", "admin"] }).notNull().default("user"),
+    resetToken: text("reset_token"),
+    resetTokenExpiresAt: integer("reset_token_expires_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("idx_users_email").on(table.email), index("idx_users_reset_token").on(table.resetToken)]
+);
+
 export const categories = sqliteTable(
   "categories",
   {
@@ -53,6 +68,7 @@ export const orders = sqliteTable(
   "orders",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id),
     email: text("email").notNull(),
     total: real("total").notNull(),
     status: text("status").notNull().default("pending"),
@@ -60,7 +76,12 @@ export const orders = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => [index("idx_orders_email").on(table.email), index("idx_orders_status").on(table.status)]
+  (table) => [
+    index("idx_orders_email").on(table.email),
+    index("idx_orders_status").on(table.status),
+    index("idx_orders_user_id").on(table.userId),
+    index("idx_orders_stripe_session_id").on(table.stripeSessionId),
+  ]
 );
 
 export const orderItems = sqliteTable("order_items", {
@@ -80,6 +101,7 @@ export const orderItems = sqliteTable("order_items", {
 });
 
 export type Admin = typeof admins.$inferSelect;
+export type User = typeof users.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Order = typeof orders.$inferSelect;

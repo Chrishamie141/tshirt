@@ -1,11 +1,15 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { requireUserSession } from "@/lib/auth";
 import { getJsonBody, toErrorResponse } from "@/lib/api";
 import { checkoutSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
   try {
+    const guard = await requireUserSession();
+    if (guard.unauthorized) return guard.unauthorized;
+
     const rawBody = await getJsonBody<unknown>(request);
     const body = checkoutSchema.parse(rawBody);
 
@@ -19,11 +23,18 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      customer_email: guard.session.email,
+      metadata: {
+        userId: String(guard.session.userId),
+      },
       line_items: body.items.map((item) => ({
         quantity: item.quantity,
         price_data: {
           currency: "usd",
-          product_data: { name: item.name },
+          product_data: {
+            name: `${item.name} (Size ${item.size})`,
+            metadata: { productId: String(item.productId), size: item.size },
+          },
           unit_amount: Math.round(item.price * 100),
         },
       })),

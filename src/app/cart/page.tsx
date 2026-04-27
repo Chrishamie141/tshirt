@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart-store";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity } = useCartStore();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +23,10 @@ export default function CartPage() {
         body: JSON.stringify({ items }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok || !data.url) throw new Error(data.error ?? "Unable to start checkout");
       window.location.href = data.url;
     } catch (checkoutError) {
