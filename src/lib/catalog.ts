@@ -24,6 +24,7 @@ export async function getFeaturedProducts(limit = 6) {
       imageUrl: products.imageUrl,
       price: products.price,
       sizes: products.sizes,
+      sizeStock: products.sizeStock,
       stock: products.stock,
       categoryId: products.categoryId,
     })
@@ -63,6 +64,7 @@ export async function getProducts(filters: ProductFilters = {}) {
       price: products.price,
       stock: products.stock,
       sizes: products.sizes,
+      sizeStock: products.sizeStock,
       categoryName: categories.name,
       categorySlug: categories.slug,
     })
@@ -83,6 +85,7 @@ export async function getProductBySlug(slug: string) {
       price: products.price,
       stock: products.stock,
       sizes: products.sizes,
+      sizeStock: products.sizeStock,
       categoryName: categories.name,
       categorySlug: categories.slug,
     })

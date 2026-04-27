@@ -1,51 +1,78 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { ZodError } from "zod";
+import { requireAdminSession } from "@/lib/auth";
+import { getJsonBody, toErrorResponse } from "@/lib/api";
 import { db } from "@/lib/db";
-import { parseNonNegativePrice } from "@/lib/price";
+import { buildSizeStock, getTotalStock, parseSizeStock, parseSizes } from "@/lib/inventory";
 import { products } from "@/lib/schema";
+import { adminUpdateProductSchema } from "@/lib/validators";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const guard = await requireAdminSession();
+    if (guard.unauthorized) return guard.unauthorized;
 
-  const { id } = await params;
-  const body = (await request.json()) as Partial<{ price: number | string; stock: number; name: string }>;
-
-  const updatePayload: Partial<{ price: number; stock: number; name: string; updatedAt: Date }> = {
-    updatedAt: new Date(),
-  };
-
-  if (body.price !== undefined) {
-    const parsedPrice = parseNonNegativePrice(String(body.price));
-    if (parsedPrice === null) {
-      return NextResponse.json({ error: "Price must be a valid non-negative decimal." }, { status: 400 });
+    const { id } = await params;
+    const productId = Number(id);
+    if (Number.isNaN(productId)) {
+      return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
     }
-    updatePayload.price = parsedPrice;
+
+    const rawBody = await getJsonBody<unknown>(request);
+    const body = adminUpdateProductSchema.parse(rawBody);
+
+    const [current] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+    if (!current) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    const updatePayload: Partial<typeof current> = { updatedAt: new Date() };
+
+    if (body.price !== undefined) updatePayload.price = body.price;
+    if (body.name !== undefined) updatePayload.name = body.name;
+    if (body.sizes !== undefined) updatePayload.sizes = parseSizes(body.sizes).join(",");
+
+    if (body.sizeStock !== undefined) {
+      const sizes = parseSizes(updatePayload.sizes ?? current.sizes);
+      const sizeStock = buildSizeStock(sizes, body.sizeStock);
+      updatePayload.sizeStock = JSON.stringify(sizeStock);
+      updatePayload.stock = getTotalStock(sizeStock);
+    } else if (body.stock !== undefined) {
+      const parsed = parseSizeStock(current.sizeStock);
+      updatePayload.stock = body.stock;
+      if (Object.keys(parsed).length === 0) {
+        const sizes = parseSizes(updatePayload.sizes ?? current.sizes);
+        updatePayload.sizeStock = JSON.stringify(buildSizeStock(sizes, { [sizes[0] ?? "M"]: body.stock }));
+      }
+    }
+
+    await db.update(products).set(updatePayload).where(eq(products.id, productId));
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid payload" }, { status: 400 });
+    }
+
+    return toErrorResponse(error, "Failed to update product");
   }
-
-  if (body.stock !== undefined) {
-    updatePayload.stock = body.stock;
-  }
-
-  if (body.name !== undefined) {
-    updatePayload.name = body.name;
-  }
-
-  await db
-    .update(products)
-    .set(updatePayload)
-    .where(eq(products.id, Number(id)));
-
-  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const guard = await requireAdminSession();
+    if (guard.unauthorized) return guard.unauthorized;
 
-  const { id } = await params;
-  await db.delete(products).where(eq(products.id, Number(id)));
+    const { id } = await params;
+    const productId = Number(id);
+    if (Number.isNaN(productId)) {
+      return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
+    }
 
-  return NextResponse.json({ ok: true });
+    await db.delete(products).where(eq(products.id, productId));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return toErrorResponse(error, "Failed to delete product");
+  }
 }

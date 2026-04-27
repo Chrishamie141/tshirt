@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
-  description TEXT NOT NULL DEFAULT ''
+  description TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -32,55 +34,31 @@ CREATE TABLE IF NOT EXISTS products (
   category_id INTEGER NOT NULL,
   price REAL NOT NULL,
   sizes TEXT NOT NULL,
+  size_stock TEXT NOT NULL DEFAULT '{}',
   stock INTEGER NOT NULL,
   featured INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS orders (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  email TEXT NOT NULL,
-  total REAL NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  stripe_session_id TEXT,
-  created_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS order_items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id INTEGER NOT NULL,
-  product_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  quantity INTEGER NOT NULL,
-  unit_price REAL NOT NULL,
-  size TEXT NOT NULL
 );
 `);
 
 const now = Date.now();
 
 const insertCategory = sqlite.prepare(
-  "INSERT OR IGNORE INTO categories (name, slug, description) VALUES (?, ?, ?)"
+  "INSERT OR IGNORE INTO categories (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
 );
 
-insertCategory.run("T-Shirts", "t-shirts", "Everyday premium tees");
-insertCategory.run("Hoodies", "hoodies", "Cozy heavyweight hoodies");
-insertCategory.run("Clothes", "clothes", "Pants, jackets, and layering");
+insertCategory.run("T-Shirts", "t-shirts", "Everyday premium tees", now, now);
+insertCategory.run("Hoodies", "hoodies", "Cozy heavyweight hoodies", now, now);
+insertCategory.run("Clothes", "clothes", "Pants, jackets, and layering", now, now);
 
-const categoryRows = sqlite.prepare("SELECT id, slug FROM categories").all() as Array<{
-  id: number;
-  slug: string;
-}>;
-
-const categoryBySlug = Object.fromEntries(
-  categoryRows.map((row) => [row.slug, row.id])
-);
+const categoryRows = sqlite.prepare("SELECT id, slug FROM categories").all() as Array<{ id: number; slug: string }>;
+const categoryBySlug = Object.fromEntries(categoryRows.map((row) => [row.slug, row.id]));
 
 const insertProduct = sqlite.prepare(`
   INSERT OR IGNORE INTO products
-  (name, slug, description, image_url, category_id, price, sizes, stock, featured, created_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (name, slug, description, image_url, category_id, price, sizes, size_stock, stock, featured, created_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 [
@@ -92,6 +70,7 @@ const insertProduct = sqlite.prepare(`
     categoryBySlug["t-shirts"],
     29.0,
     "S,M,L,XL",
+    JSON.stringify({ S: 10, M: 12, L: 9, XL: 7 }),
     38,
     1,
   ],
@@ -103,44 +82,20 @@ const insertProduct = sqlite.prepare(`
     categoryBySlug["t-shirts"],
     34.99,
     "M,L,XL",
+    JSON.stringify({ M: 8, L: 9, XL: 5 }),
     22,
     1,
-  ],
-  [
-    "Core Pullover Hoodie",
-    "core-pullover-hoodie",
-    "Brushed fleece hoodie with kangaroo pocket and ribbed cuffs.",
-    "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=1200",
-    categoryBySlug.hoodies,
-    68.5,
-    "S,M,L,XL",
-    16,
-    1,
-  ],
-  [
-    "Cargo Utility Pants",
-    "cargo-utility-pants",
-    "Tapered cotton cargo with stretch waistband and pocket storage.",
-    "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=1200",
-    categoryBySlug.clothes,
-    72.0,
-    "M,L,XL",
-    12,
-    0,
   ],
 ].forEach((product) => insertProduct.run(...product, now, now));
 
 const passwordHash = await bcrypt.hash("admin1234", 10);
 
 const insertAdmin = sqlite.prepare(`
-  INSERT OR IGNORE INTO admins 
-  (email, password_hash, created_at, updated_at) 
+  INSERT OR IGNORE INTO admins
+  (email, password_hash, created_at, updated_at)
   VALUES (?, ?, ?, ?)
 `);
-
 insertAdmin.run("admin@tshirt.com", passwordHash, now, now);
 
 console.log(`Seed complete at ${sqlitePath}`);
-console.log("Admin login: admin@tshirt.com / admin1234");
-
 sqlite.close();

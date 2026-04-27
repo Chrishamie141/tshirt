@@ -1,43 +1,64 @@
 import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { ZodError } from "zod";
+import { requireAdminSession } from "@/lib/auth";
+import { getJsonBody, toErrorResponse } from "@/lib/api";
 import { db } from "@/lib/db";
-import { parseNonNegativePrice } from "@/lib/price";
+import { buildSizeStock, getTotalStock, parseSizes } from "@/lib/inventory";
 import { products } from "@/lib/schema";
+import { adminCreateProductSchema } from "@/lib/validators";
 
 export async function GET() {
-  const session = await getAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const guard = await requireAdminSession();
+    if (guard.unauthorized) return guard.unauthorized;
 
-  const allProducts = await db.select().from(products).orderBy(desc(products.createdAt));
-  return NextResponse.json({ products: allProducts });
+    const allProducts = await db.select().from(products).orderBy(desc(products.createdAt));
+    return NextResponse.json({ products: allProducts });
+  } catch (error) {
+    return toErrorResponse(error, "Failed to fetch products");
+  }
 }
 
 export async function POST(request: Request) {
-  const session = await getAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const guard = await requireAdminSession();
+    if (guard.unauthorized) return guard.unauthorized;
 
-  const body = (await request.json()) as {
-    name: string;
-    slug: string;
-    description: string;
-    imageUrl: string;
-    categoryId: number;
-    price: number | string;
-    sizes: string;
-    stock: number;
-  };
+    const rawBody = await getJsonBody<unknown>(request);
+    const body = adminCreateProductSchema.parse(rawBody);
 
-  const parsedPrice = parseNonNegativePrice(String(body.price));
-  if (parsedPrice === null) {
-    return NextResponse.json({ error: "Price must be a valid non-negative decimal." }, { status: 400 });
+    const sizes = parseSizes(body.sizes);
+    const sizeStock = buildSizeStock(sizes, body.sizeStock ?? {});
+    const now = new Date();
+
+    const result = await db
+      .insert(products)
+      .values({
+        ...body,
+        sizes: sizes.join(","),
+        sizeStock: JSON.stringify(sizeStock),
+        stock: getTotalStock(sizeStock),
+        featured: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({
+        id: products.id,
+        name: products.name,
+        slug: products.slug,
+        price: products.price,
+        stock: products.stock,
+        sizes: products.sizes,
+        sizeStock: products.sizeStock,
+      });
+
+    return NextResponse.json({ product: result[0] });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid payload" }, { status: 400 });
+    }
+
+    return toErrorResponse(error, "Failed to create product");
   }
-
-  const now = new Date();
-  const result = await db
-    .insert(products)
-    .values({ ...body, price: parsedPrice, featured: false, createdAt: now, updatedAt: now })
-    .returning({ id: products.id, name: products.name, slug: products.slug, price: products.price, stock: products.stock });
-
-  return NextResponse.json({ product: result[0] });
 }
