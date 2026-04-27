@@ -3,16 +3,23 @@
 import Link from "next/link";
 import { Shirt, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart-store";
 
 type SessionUser = {
+  id: number;
   email: string;
   role: "user" | "admin";
+  name: string;
+  phone: string;
 };
 
 export function SiteHeader() {
   const itemCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const run = async () => {
@@ -22,7 +29,16 @@ export function SiteHeader() {
     };
 
     void run();
-  }, []);
+  }, [pathname]);
+
+  const logout = async () => {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    router.push("/login");
+    router.refresh();
+    setLoggingOut(false);
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200/70 bg-white/75 backdrop-blur-xl">
@@ -48,12 +64,27 @@ export function SiteHeader() {
           </Link>
           {user ? (
             <>
-              <Link href="/account" className="relative py-1 hover:text-sky-700">Account</Link>
-              {user.role === "admin" ? <Link href="/admin" className="relative py-1 hover:text-sky-700">Admin</Link> : null}
-              <Link href="/logout" className="relative py-1 hover:text-sky-700">Logout</Link>
+              <Link href="/account" className="relative py-1 hover:text-sky-700">
+                Account
+              </Link>
+              {user.role === "admin" ? (
+                <Link href="/admin" className="relative py-1 hover:text-sky-700">
+                  Admin
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void logout()}
+                disabled={loggingOut}
+                className="relative py-1 hover:text-sky-700 disabled:opacity-60"
+              >
+                {loggingOut ? "Signing out..." : "Logout"}
+              </button>
             </>
           ) : (
-            <Link href="/login" className="relative py-1 hover:text-sky-700">Login</Link>
+            <Link href="/login" className="relative py-1 hover:text-sky-700">
+              Login
+            </Link>
           )}
           <Link href="/cart" className="relative inline-flex items-center gap-2 rounded-full border border-transparent px-2 py-1 hover:border-sky-200 hover:bg-white">
             <ShoppingCart size={18} />
