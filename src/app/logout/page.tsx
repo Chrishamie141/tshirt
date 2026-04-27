@@ -1,16 +1,25 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { userCookieName } from "@/lib/auth";
+"use client";
 
-export default async function LogoutPage() {
-  const cookieStore = await cookies();
-  cookieStore.set(userCookieName(), "", {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    expires: new Date(0),
-  });
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-  redirect("/");
+export default function LogoutPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const logout = async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    };
+
+    void logout();
+  }, [router]);
+
+  return (
+    <div className="mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+      <h1 className="text-2xl font-black">Signing you out...</h1>
+      <p className="mt-2 text-sm text-zinc-500">Please wait.</p>
+    </div>
+  );
 }
