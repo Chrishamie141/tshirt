@@ -2,11 +2,17 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getUserSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orderItems, orders } from "@/lib/schema";
+import { orderItems, orders, users } from "@/lib/schema";
 
 export default async function AccountPage() {
   const session = await getUserSession();
   if (!session) redirect("/login");
+
+  const [user] = await db
+    .select({ name: users.name, phone: users.phone, email: users.email })
+    .from(users)
+    .where(eq(users.id, session.userId))
+    .limit(1);
 
   const ownOrders = await db
     .select()
@@ -24,7 +30,9 @@ export default async function AccountPage() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-white p-6">
         <h1 className="text-3xl font-black">My account</h1>
-        <p className="mt-2 text-zinc-600">Signed in as {session.email}</p>
+        <p className="mt-2 text-zinc-600">Name: {user?.name ?? "Unknown"}</p>
+        <p className="text-zinc-600">Email: {user?.email ?? session.email}</p>
+        <p className="text-zinc-600">Phone: {user?.phone || "Not set"}</p>
       </div>
 
       <section className="space-y-4">

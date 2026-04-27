@@ -36,6 +36,8 @@ function createTables(db: Database.Database) {
 
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
@@ -113,10 +115,13 @@ function createTables(db: Database.Database) {
   addColumnIfMissing(db, "admins", "reset_token_expires_at", "INTEGER");
   addColumnIfMissing(db, "admins", "updated_at", "INTEGER NOT NULL DEFAULT 0");
 
+  addColumnIfMissing(db, "users", "name", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, "users", "phone", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "users", "role", "TEXT NOT NULL DEFAULT 'user'");
   addColumnIfMissing(db, "users", "reset_token", "TEXT");
   addColumnIfMissing(db, "users", "reset_token_expires_at", "INTEGER");
   addColumnIfMissing(db, "users", "updated_at", "INTEGER NOT NULL DEFAULT 0");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
 
   addColumnIfMissing(db, "categories", "created_at", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "categories", "updated_at", "INTEGER NOT NULL DEFAULT 0");

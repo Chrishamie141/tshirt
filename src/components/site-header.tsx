@@ -53,10 +53,7 @@ export function SiteHeader() {
               <Link href="/logout" className="relative py-1 hover:text-sky-700">Logout</Link>
             </>
           ) : (
-            <>
-              <Link href="/login" className="relative py-1 hover:text-sky-700">Login</Link>
-              <Link href="/signup" className="relative py-1 hover:text-sky-700">Signup</Link>
-            </>
+            <Link href="/login" className="relative py-1 hover:text-sky-700">Login</Link>
           )}
           <Link href="/cart" className="relative inline-flex items-center gap-2 rounded-full border border-transparent px-2 py-1 hover:border-sky-200 hover:bg-white">
             <ShoppingCart size={18} />

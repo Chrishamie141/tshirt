@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -14,9 +14,14 @@ export async function POST(request: Request) {
     const rawBody = await getJsonBody<unknown>(request);
     const body = signupSchema.parse(rawBody);
 
-    const [existing] = await db.select().from(users).where(eq(users.email, body.email)).limit(1);
+    const [existing] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.email, body.email), eq(users.phone, body.phone)))
+      .limit(1);
+
     if (existing) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid signup details" }, { status: 400 });
     }
 
     const now = new Date();
@@ -24,6 +29,8 @@ export async function POST(request: Request) {
     const [created] = await db
       .insert(users)
       .values({
+        name: body.name,
+        phone: body.phone,
         email: body.email,
         passwordHash: hashed,
         role: "user",

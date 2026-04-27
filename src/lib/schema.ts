@@ -18,6 +18,8 @@ export const users = sqliteTable(
   "users",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    phone: text("phone").notNull().unique(),
     email: text("email").notNull().unique(),
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["user", "admin"] }).notNull().default("user"),
@@ -26,7 +28,7 @@ export const users = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => [index("idx_users_email").on(table.email), index("idx_users_reset_token").on(table.resetToken)]
+  (table) => [index("idx_users_email").on(table.email), index("idx_users_phone").on(table.phone), index("idx_users_reset_token").on(table.resetToken)]
 );
 
 export const categories = sqliteTable(
