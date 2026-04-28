@@ -2,17 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const emailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), [email]);
+  const passwordValid = password.length > 0;
+  const formValid = emailValid && passwordValid;
+
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (!formValid) {
+      setError("Please enter a valid email and password.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -22,8 +33,11 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+
       const data = (await response.json()) as { error?: string };
+
       if (!response.ok) throw new Error(data.error ?? "Invalid email or password");
+
       router.push("/account");
       router.refresh();
     } catch (submitError) {
@@ -37,12 +51,68 @@ export default function LoginPage() {
     <div className="mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
       <h1 className="text-3xl font-black">Login</h1>
       <p className="mt-2 text-sm text-zinc-500">Sign in to checkout and track your orders.</p>
+
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <input className="w-full rounded-lg border border-zinc-300 px-3 py-2" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input className="w-full rounded-lg border border-zinc-300 px-3 py-2" type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <div>
+          <div className="relative">
+            <input
+              className={`w-full rounded-lg border px-3 py-2 pr-10 ${
+                email.length > 0 && emailValid
+                  ? "border-green-500"
+                  : email.length > 0
+                    ? "border-red-400"
+                    : "border-zinc-300"
+              }`}
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            {email.length > 0 && emailValid ? (
+              <span className="absolute right-3 top-2 text-green-600">✓</span>
+            ) : null}
+          </div>
+          {email.length > 0 && !emailValid ? (
+            <p className="mt-1 text-xs text-red-600">Enter a valid email address.</p>
+          ) : null}
+        </div>
+
+        <div>
+          <div className="relative">
+            <input
+              className={`w-full rounded-lg border px-3 py-2 pr-20 ${
+                password.length > 0 ? "border-green-500" : "border-zinc-300"
+              }`}
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            {password.length > 0 ? (
+              <span className="absolute right-16 top-2 text-green-600">✓</span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-2 text-sm text-zinc-600 hover:text-black"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
         {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p> : null}
-        <button disabled={loading} className="w-full rounded-lg bg-black px-4 py-2 font-medium text-white disabled:opacity-60">{loading ? "Signing in..." : "Sign in"}</button>
+
+        <button
+          disabled={loading || !formValid}
+          className="w-full rounded-lg bg-black px-4 py-2 font-medium text-white disabled:opacity-60"
+        >
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
       </form>
+
       <div className="mt-4 flex justify-between text-sm">
         <Link href="/signup" className="text-zinc-600 hover:text-black">Create account</Link>
         <Link href="/forgot-password" className="text-zinc-600 hover:text-black">Forgot password?</Link>
