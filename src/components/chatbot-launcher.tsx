@@ -51,7 +51,7 @@ export function ChatbotLauncher() {
         {open ? <X size={16} /> : <MessageCircle size={16} />} Support
       </button>
       {open ? (
-        <section className="fixed bottom-24 right-6 z-50 flex h-[460px] w-[min(92vw,360px)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl">
+        <section className="fixed bottom-24 right-6 z-50 flex h-115 w-[min(92vw,360px)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl">
           <header className="border-b border-zinc-200 px-4 py-3 text-sm font-semibold">Customer support</header>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.map((message, index) => (

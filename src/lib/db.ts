@@ -126,11 +126,8 @@ async function bootstrap() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_orders_stripe_session_id ON orders(stripe_session_id)`);
 }
 
-
 const bootstrapPromise = globalForDb.bootstrapPromise ?? bootstrap();
 globalForDb.bootstrapPromise = bootstrapPromise;
-
-await bootstrapPromise;
 
 export async function initializeDatabase() {
   await bootstrapPromise;
