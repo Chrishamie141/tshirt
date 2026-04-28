@@ -1,163 +1,142 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
+import { Pool } from "pg";
 import * as schema from "./schema";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? "file:./tshirt.db";
-const sqlitePath = DATABASE_URL.replace("file:", "");
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  throw new Error("DATABASE_URL is required and must be a PostgreSQL connection string");
+}
 
 const globalForDb = globalThis as unknown as {
-  sqlite: Database.Database | undefined;
+  pool: Pool | undefined;
   db: ReturnType<typeof drizzle<typeof schema>> | undefined;
+  bootstrapPromise: Promise<void> | undefined;
 };
 
-function hasColumn(db: Database.Database, table: string, column: string) {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  return columns.some((entry) => entry.name === column);
+const pool =
+  globalForDb.pool ??
+  new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
+  });
+
+export const db = globalForDb.db ?? drizzle(pool, { schema });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.pool = pool;
+  globalForDb.db = db;
 }
 
-function addColumnIfMissing(db: Database.Database, table: string, column: string, definition: string) {
-  if (!hasColumn(db, table, column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
-}
-
-function createTables(db: Database.Database) {
-  db.exec(`
+async function bootstrap() {
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS admins (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       reset_token TEXT,
-      reset_token_expires_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+      reset_token_expires_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    )
+  `);
 
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL DEFAULT '',
-      phone TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL UNIQUE,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
       reset_token TEXT,
-      reset_token_expires_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+      reset_token_expires_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    )
+  `);
 
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    )
+  `);
 
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL,
       image_url TEXT NOT NULL,
-      category_id INTEGER NOT NULL,
+      category_id INTEGER NOT NULL REFERENCES categories(id),
       price REAL NOT NULL,
       sizes TEXT NOT NULL DEFAULT 'S,M,L,XL',
-      size_stock TEXT NOT NULL DEFAULT '{}',
+      size_stock JSONB NOT NULL DEFAULT '{}'::jsonb,
       stock INTEGER NOT NULL DEFAULT 0,
-      featured INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY(category_id) REFERENCES categories(id)
-    );
+      featured BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    )
+  `);
 
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
       email TEXT NOT NULL,
       total REAL NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       stripe_session_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    )
+  `);
 
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
+      id SERIAL PRIMARY KEY,
+      order_id INTEGER NOT NULL REFERENCES orders(id),
+      product_id INTEGER NOT NULL REFERENCES products(id),
       name TEXT NOT NULL,
       quantity INTEGER NOT NULL,
       unit_price REAL NOT NULL,
       size TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY(order_id) REFERENCES orders(id),
-      FOREIGN KEY(product_id) REFERENCES products(id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token);
-    CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
-    CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
-    CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
-    CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(email);
-    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-    CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
-    CREATE INDEX IF NOT EXISTS idx_orders_stripe_session_id ON orders(stripe_session_id);
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    )
   `);
 
-  addColumnIfMissing(db, "admins", "reset_token", "TEXT");
-  addColumnIfMissing(db, "admins", "reset_token_expires_at", "INTEGER");
-  addColumnIfMissing(db, "admins", "updated_at", "INTEGER NOT NULL DEFAULT 0");
-
-  addColumnIfMissing(db, "users", "name", "TEXT NOT NULL DEFAULT ''");
-  addColumnIfMissing(db, "users", "phone", "TEXT NOT NULL DEFAULT ''");
-  addColumnIfMissing(db, "users", "role", "TEXT NOT NULL DEFAULT 'user'");
-  addColumnIfMissing(db, "users", "reset_token", "TEXT");
-  addColumnIfMissing(db, "users", "reset_token_expires_at", "INTEGER");
-  addColumnIfMissing(db, "users", "updated_at", "INTEGER NOT NULL DEFAULT 0");
-  db.exec("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
-
-  addColumnIfMissing(db, "categories", "created_at", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing(db, "categories", "updated_at", "INTEGER NOT NULL DEFAULT 0");
-
-  addColumnIfMissing(db, "products", "size_stock", "TEXT NOT NULL DEFAULT '{}'");
-
-  addColumnIfMissing(db, "orders", "user_id", "INTEGER");
-  addColumnIfMissing(db, "orders", "updated_at", "INTEGER NOT NULL DEFAULT 0");
-
-  addColumnIfMissing(db, "order_items", "created_at", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing(db, "order_items", "updated_at", "INTEGER NOT NULL DEFAULT 0");
-
-  const now = Date.now();
-  db.exec(`
-    UPDATE admins SET updated_at = ${now} WHERE updated_at = 0;
-    UPDATE users SET role = 'user' WHERE role IS NULL OR role = '';
-    UPDATE users SET updated_at = created_at WHERE updated_at = 0;
-    UPDATE categories SET created_at = ${now} WHERE created_at = 0;
-    UPDATE categories SET updated_at = ${now} WHERE updated_at = 0;
-    UPDATE orders SET updated_at = created_at WHERE updated_at = 0;
-    UPDATE order_items SET created_at = ${now} WHERE created_at = 0;
-    UPDATE order_items SET updated_at = created_at WHERE updated_at = 0;
-  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(email)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_orders_stripe_session_id ON orders(stripe_session_id)`);
 }
 
-export const sqlite =
-  globalForDb.sqlite ?? new Database(sqlitePath === "./tshirt.db" ? "tshirt.db" : sqlitePath);
-createTables(sqlite);
 
-export const db = globalForDb.db ?? drizzle(sqlite, { schema });
+const bootstrapPromise = globalForDb.bootstrapPromise ?? bootstrap();
+globalForDb.bootstrapPromise = bootstrapPromise;
 
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.sqlite = sqlite;
-  globalForDb.db = db;
+await bootstrapPromise;
+
+export async function initializeDatabase() {
+  await bootstrapPromise;
 }
 
 export async function healthcheck() {
-  return db.run(sql`select 1`);
+  await initializeDatabase();
+  return db.execute(sql`select 1`);
 }

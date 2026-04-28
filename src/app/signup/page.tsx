@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+function Check({ show }: { show: boolean }) {
+  return show ? <span className="absolute right-3 top-2 text-green-600">✓</span> : null;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -58,8 +62,6 @@ export default function SignupPage() {
     }
   };
 
-  const Check = ({ show }: { show: boolean }) =>
-    show ? <span className="absolute right-3 top-2 text-green-600">✓</span> : null;
 
   return (
     <div className="mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">

@@ -1,3 +1,4 @@
+export type SizeStockInput = string | Record<string, unknown> | null | undefined;
 export type SizeStockMap = Record<string, number>;
 
 /**
@@ -13,19 +14,26 @@ export function parseSizes(sizes: string): string[] {
 /**
  * Safely parses persisted JSON size stock payloads.
  */
-export function parseSizeStock(sizeStock: string | null | undefined): SizeStockMap {
+export function parseSizeStock(sizeStock: SizeStockInput): SizeStockMap {
   if (!sizeStock) return {};
 
-  try {
-    const value = JSON.parse(sizeStock) as Record<string, unknown>;
-    return Object.fromEntries(
+  const toMap = (value: Record<string, unknown>) =>
+    Object.fromEntries(
       Object.entries(value)
         .filter(([, quantity]) => Number.isFinite(Number(quantity)))
         .map(([size, quantity]) => [size, Math.max(0, Math.floor(Number(quantity)))])
     );
-  } catch {
-    return {};
+
+  if (typeof sizeStock === "string") {
+    try {
+      const value = JSON.parse(sizeStock) as Record<string, unknown>;
+      return toMap(value);
+    } catch {
+      return {};
+    }
   }
+
+  return toMap(sizeStock);
 }
 
 /**
@@ -47,11 +55,7 @@ export function getTotalStock(sizeStock: SizeStockMap): number {
 /**
  * Compatibility helper for old records with only `sizes` + aggregate `stock`.
  */
-export function getInitialSizeStock(
-  sizeStock: string | null | undefined,
-  sizes: string,
-  stock: number
-): SizeStockMap {
+export function getInitialSizeStock(sizeStock: SizeStockInput, sizes: string, stock: number): SizeStockMap {
   const parsed = parseSizeStock(sizeStock);
   if (Object.keys(parsed).length > 0) return parsed;
 

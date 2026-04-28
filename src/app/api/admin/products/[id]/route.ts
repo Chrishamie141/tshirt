@@ -36,14 +36,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.sizeStock !== undefined) {
       const sizes = parseSizes(updatePayload.sizes ?? current.sizes);
       const sizeStock = buildSizeStock(sizes, body.sizeStock);
-      updatePayload.sizeStock = JSON.stringify(sizeStock);
+      updatePayload.sizeStock = sizeStock;
       updatePayload.stock = getTotalStock(sizeStock);
     } else if (body.stock !== undefined) {
       const parsed = parseSizeStock(current.sizeStock);
       updatePayload.stock = body.stock;
       if (Object.keys(parsed).length === 0) {
         const sizes = parseSizes(updatePayload.sizes ?? current.sizes);
-        updatePayload.sizeStock = JSON.stringify(buildSizeStock(sizes, { [sizes[0] ?? "M"]: body.stock }));
+        updatePayload.sizeStock = buildSizeStock(sizes, { [sizes[0] ?? "M"]: body.stock });
       }
     }
 

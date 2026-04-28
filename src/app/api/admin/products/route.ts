@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       .values({
         ...body,
         sizes: sizes.join(","),
-        sizeStock: JSON.stringify(sizeStock),
+        sizeStock,
         stock: getTotalStock(sizeStock),
         featured: false,
         createdAt: now,

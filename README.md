@@ -1,9 +1,9 @@
-# t-shirt (Next.js + SQLite + Drizzle)
+# t-shirt (Next.js + PostgreSQL + Drizzle)
 
 Full-stack e-commerce web app for a t-shirt/clothing brand with:
 
 - Next.js (App Router), React, TypeScript, Tailwind CSS
-- SQLite + Drizzle ORM
+- PostgreSQL + Drizzle ORM
 - Zustand cart state
 - Stripe checkout integration
 - Admin authentication + inventory management
@@ -20,12 +20,6 @@ Full-stack e-commerce web app for a t-shirt/clothing brand with:
 - AI chatbot API that can reference product catalog data
 - Seed script for categories, products, and default admin user
 
-## Tech choices
-
-- **No Prisma** (uses Drizzle + direct SQL table bootstrap)
-- TypeScript everywhere (`src` + seed script)
-- Environment-variable based secrets
-
 ## Setup
 
 1. Install deps:
@@ -40,13 +34,21 @@ Full-stack e-commerce web app for a t-shirt/clothing brand with:
    cp .env.example .env
    ```
 
-3. Seed database:
+3. Set `DATABASE_URL` to your PostgreSQL connection string.
+
+4. Bootstrap schema (Drizzle push):
+
+   ```bash
+   npm run db:push
+   ```
+
+5. Seed data:
 
    ```bash
    npm run db:seed
    ```
 
-4. Run dev server:
+6. Run dev server:
 
    ```bash
    npm run dev
@@ -61,17 +63,36 @@ Open http://localhost:3000.
 
 > Change these immediately in production.
 
-## Important environment variables
+## Required environment variables
 
-- `DATABASE_URL` (SQLite path, default `file:./tshirt.db`)
-- `JWT_SECRET` for admin session token signing
-- `STRIPE_SECRET_KEY` for checkout session creation
-- `OPENAI_API_KEY` for chatbot responses
-- `NEXT_PUBLIC_APP_URL` for Stripe redirect URLs
+- `DATABASE_URL` (PostgreSQL URL)
+- `JWT_SECRET`
+- `NEXT_PUBLIC_APP_URL`
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `STRIPE_SECRET_KEY`
 
-## Production notes
+## Render deployment
 
-- Add Stripe webhooks for robust order status reconciliation.
-- Move images to a CDN/storage bucket.
-- Add rate limiting on chatbot and auth endpoints.
-- Add CSRF protection and full audit logs for admin actions.
+### Render PostgreSQL
+
+1. Create a PostgreSQL database service in Render.
+2. Copy its **Internal Database URL** and use it as `DATABASE_URL` for your web service.
+
+### Render Web Service
+
+- Build command: `npm install && npm run build`
+- Start command: `npm run start`
+
+Set all required environment variables in the web service.
+
+On first deploy, run:
+
+```bash
+npm run db:push
+npm run db:seed
+```
+
+`db:seed` is idempotent and safe to rerun.

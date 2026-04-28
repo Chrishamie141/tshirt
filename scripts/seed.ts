@@ -1,101 +1,74 @@
 import bcrypt from "bcryptjs";
-import Database from "better-sqlite3";
+import { eq } from "drizzle-orm";
+import { db, initializeDatabase } from "../src/lib/db";
+import { admins, categories, products } from "../src/lib/schema";
 
-const databaseUrl = process.env.DATABASE_URL ?? "file:./tshirt.db";
-const sqlitePath = databaseUrl.replace("file:", "") || "tshirt.db";
-const sqlite = new Database(sqlitePath);
+async function main() {
+  await initializeDatabase();
 
-sqlite.exec(`
-CREATE TABLE IF NOT EXISTS admins (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  reset_token TEXT,
-  reset_token_expires_at INTEGER,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
+  const now = new Date();
 
-CREATE TABLE IF NOT EXISTS categories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  description TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
+  await db
+    .insert(categories)
+    .values([
+      { name: "T-Shirts", slug: "t-shirts", description: "Everyday premium tees", createdAt: now, updatedAt: now },
+      { name: "Hoodies", slug: "hoodies", description: "Cozy heavyweight hoodies", createdAt: now, updatedAt: now },
+      { name: "Clothes", slug: "clothes", description: "Pants, jackets, and layering", createdAt: now, updatedAt: now },
+    ])
+    .onConflictDoNothing({ target: categories.slug });
 
-CREATE TABLE IF NOT EXISTS products (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  description TEXT NOT NULL,
-  image_url TEXT NOT NULL,
-  category_id INTEGER NOT NULL,
-  price REAL NOT NULL,
-  sizes TEXT NOT NULL,
-  size_stock TEXT NOT NULL DEFAULT '{}',
-  stock INTEGER NOT NULL,
-  featured INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-`);
+  const categoryRows = await db.select({ id: categories.id, slug: categories.slug }).from(categories);
+  const categoryBySlug = Object.fromEntries(categoryRows.map((row) => [row.slug, row.id]));
 
-const now = Date.now();
+  await db
+    .insert(products)
+    .values([
+      {
+        name: "Classic Logo Tee",
+        slug: "classic-logo-tee",
+        description: "Soft cotton tee with subtle front logo and relaxed fit.",
+        imageUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1200",
+        categoryId: categoryBySlug["t-shirts"],
+        price: 29,
+        sizes: "S,M,L,XL",
+        sizeStock: { S: 10, M: 12, L: 9, XL: 7 },
+        stock: 38,
+        featured: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        name: "Oversized Street Tee",
+        slug: "oversized-street-tee",
+        description: "Dropped shoulders and heavyweight jersey for all-day comfort.",
+        imageUrl: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=1200",
+        categoryId: categoryBySlug["t-shirts"],
+        price: 34.99,
+        sizes: "M,L,XL",
+        sizeStock: { M: 8, L: 9, XL: 5 },
+        stock: 22,
+        featured: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ])
+    .onConflictDoNothing({ target: products.slug });
 
-const insertCategory = sqlite.prepare(
-  "INSERT OR IGNORE INTO categories (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-);
+  const existingAdmin = await db.select({ id: admins.id }).from(admins).where(eq(admins.email, "admin@tshirt.com")).limit(1);
+  if (existingAdmin.length === 0) {
+    const passwordHash = await bcrypt.hash("admin1234", 10);
+    await db.insert(admins).values({
+      email: "admin@tshirt.com",
+      passwordHash,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
 
-insertCategory.run("T-Shirts", "t-shirts", "Everyday premium tees", now, now);
-insertCategory.run("Hoodies", "hoodies", "Cozy heavyweight hoodies", now, now);
-insertCategory.run("Clothes", "clothes", "Pants, jackets, and layering", now, now);
+  console.log("Seed complete for PostgreSQL");
+}
 
-const categoryRows = sqlite.prepare("SELECT id, slug FROM categories").all() as Array<{ id: number; slug: string }>;
-const categoryBySlug = Object.fromEntries(categoryRows.map((row) => [row.slug, row.id]));
-
-const insertProduct = sqlite.prepare(`
-  INSERT OR IGNORE INTO products
-  (name, slug, description, image_url, category_id, price, sizes, size_stock, stock, featured, created_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-
-[
-  [
-    "Classic Logo Tee",
-    "classic-logo-tee",
-    "Soft cotton tee with subtle front logo and relaxed fit.",
-    "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1200",
-    categoryBySlug["t-shirts"],
-    29.0,
-    "S,M,L,XL",
-    JSON.stringify({ S: 10, M: 12, L: 9, XL: 7 }),
-    38,
-    1,
-  ],
-  [
-    "Oversized Street Tee",
-    "oversized-street-tee",
-    "Dropped shoulders and heavyweight jersey for all-day comfort.",
-    "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=1200",
-    categoryBySlug["t-shirts"],
-    34.99,
-    "M,L,XL",
-    JSON.stringify({ M: 8, L: 9, XL: 5 }),
-    22,
-    1,
-  ],
-].forEach((product) => insertProduct.run(...product, now, now));
-
-const passwordHash = await bcrypt.hash("admin1234", 10);
-
-const insertAdmin = sqlite.prepare(`
-  INSERT OR IGNORE INTO admins
-  (email, password_hash, created_at, updated_at)
-  VALUES (?, ?, ?, ?)
-`);
-insertAdmin.run("admin@tshirt.com", passwordHash, now, now);
-
-console.log(`Seed complete at ${sqlitePath}`);
-sqlite.close();
+main().catch((error) => {
+  console.error("Seed failed", error);
+  process.exit(1);
+});

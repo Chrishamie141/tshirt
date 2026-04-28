@@ -11,7 +11,7 @@ type Product = {
   price: number;
   stock: number;
   sizes: string;
-  sizeStock: string;
+  sizeStock: string | Record<string, number>;
 };
 
 type Category = { id: number; name: string };
@@ -265,7 +265,7 @@ export function AdminProductManager({
                         onChange={(e) => {
                           const updated = { ...sizeStock, [size]: Number(e.target.value) };
                           void updateProduct(product, {
-                            sizeStock: JSON.stringify(updated),
+                            sizeStock: updated,
                             sizes: sizes.join(","),
                             stock: getTotalStock(updated),
                           });

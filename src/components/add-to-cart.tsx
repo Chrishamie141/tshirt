@@ -12,7 +12,7 @@ type AddToCartProps = {
     price: number;
     imageUrl: string;
     sizes: string;
-    sizeStock: string;
+    sizeStock: string | Record<string, number>;
     stock: number;
   };
 };
