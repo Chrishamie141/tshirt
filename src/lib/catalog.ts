@@ -10,26 +10,45 @@ export type ProductFilters = {
   inStock?: boolean;
 };
 
+const productCardSelect = {
+  id: products.id,
+  slug: products.slug,
+  name: products.name,
+  description: products.description,
+  imageUrl: products.imageUrl,
+  price: products.price,
+  stock: products.stock,
+  sizes: products.sizes,
+  sizeStock: products.sizeStock,
+  categoryName: categories.name,
+  categorySlug: categories.slug,
+};
+
 export async function getCategories() {
   return db.select().from(categories).orderBy(asc(categories.name));
 }
 
 export async function getFeaturedProducts(limit = 6) {
   return db
-    .select({
-      id: products.id,
-      name: products.name,
-      slug: products.slug,
-      description: products.description,
-      imageUrl: products.imageUrl,
-      price: products.price,
-      sizes: products.sizes,
-      sizeStock: products.sizeStock,
-      stock: products.stock,
-      categoryId: products.categoryId,
-    })
+    .select(productCardSelect)
     .from(products)
+    .innerJoin(categories, eq(products.categoryId, categories.id))
     .where(eq(products.featured, true))
+    .orderBy(desc(products.createdAt))
+    .limit(limit);
+}
+
+export async function getHomepageProducts(limit = 6) {
+  const featured = await getFeaturedProducts(limit);
+
+  if (featured.length > 0) {
+    return featured;
+  }
+
+  return db
+    .select(productCardSelect)
+    .from(products)
+    .innerJoin(categories, eq(products.categoryId, categories.id))
     .orderBy(desc(products.createdAt))
     .limit(limit);
 }
@@ -40,6 +59,7 @@ export async function getProducts(filters: ProductFilters = {}) {
   if (filters.category) {
     whereClauses.push(eq(categories.slug, filters.category));
   }
+
   if (filters.minPrice !== undefined && filters.maxPrice !== undefined) {
     whereClauses.push(between(products.price, filters.minPrice, filters.maxPrice));
   } else if (filters.minPrice !== undefined) {
@@ -47,27 +67,17 @@ export async function getProducts(filters: ProductFilters = {}) {
   } else if (filters.maxPrice !== undefined) {
     whereClauses.push(lte(products.price, filters.maxPrice));
   }
+
   if (filters.size) {
     whereClauses.push(sql`${products.sizes} like ${`%${filters.size}%`}`);
   }
+
   if (filters.inStock) {
     whereClauses.push(gte(products.stock, 1));
   }
 
   return db
-    .select({
-      id: products.id,
-      slug: products.slug,
-      name: products.name,
-      description: products.description,
-      imageUrl: products.imageUrl,
-      price: products.price,
-      stock: products.stock,
-      sizes: products.sizes,
-      sizeStock: products.sizeStock,
-      categoryName: categories.name,
-      categorySlug: categories.slug,
-    })
+    .select(productCardSelect)
     .from(products)
     .innerJoin(categories, eq(products.categoryId, categories.id))
     .where(whereClauses.length > 0 ? and(...whereClauses) : undefined)
@@ -76,19 +86,7 @@ export async function getProducts(filters: ProductFilters = {}) {
 
 export async function getProductBySlug(slug: string) {
   const [product] = await db
-    .select({
-      id: products.id,
-      slug: products.slug,
-      name: products.name,
-      description: products.description,
-      imageUrl: products.imageUrl,
-      price: products.price,
-      stock: products.stock,
-      sizes: products.sizes,
-      sizeStock: products.sizeStock,
-      categoryName: categories.name,
-      categorySlug: categories.slug,
-    })
+    .select(productCardSelect)
     .from(products)
     .innerJoin(categories, eq(products.categoryId, categories.id))
     .where(eq(products.slug, slug))
